@@ -1,0 +1,366 @@
+.page {
+  --gray-rgb: 0, 0, 0;
+  --gray-alpha-200: rgba(var(--gray-rgb), 0.08);
+  --gray-alpha-100: rgba(var(--gray-rgb), 0.05);
+
+  --button-primary-hover: #383838;
+  --button-secondary-hover: #f2f2f2;
+
+  display: grid;
+  grid-template-rows: 20px 1fr 20px;
+  align-items: center;
+  justify-items: center;
+  min-height: 100svh;
+  padding: 80px;
+  gap: 64px;
+  font-family: var(--font-geist-sans);
+}
+
+@media (prefers-color-scheme: dark) {
+  .page {
+    --gray-rgb: 255, 255, 255;
+    --gray-alpha-200: rgba(var(--gray-rgb), 0.145);
+    --gray-alpha-100: rgba(var(--gray-rgb), 0.06);
+
+    --button-primary-hover: #ccc;
+    --button-secondary-hover: #1a1a1a;
+  }
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  grid-row-start: 2;
+}
+
+.main ol {
+  font-family: var(--font-geist-mono);
+  padding-left: 0;
+  margin: 0;
+  font-size: 14px;
+  line-height: 24px;
+  letter-spacing: -0.01em;
+  list-style-position: inside;
+}
+
+.main li:not(:last-of-type) {
+  margin-bottom: 8px;
+}
+
+.main code {
+  font-family: inherit;
+  background: var(--gray-alpha-100);
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.ctas {
+  display: flex;
+  gap: 16px;
+}
+
+.ctas a {
+  appearance: none;
+  border-radius: 128px;
+  height: 48px;
+  padding: 0 20px;
+  border: none;
+  border: 1px solid transparent;
+  transition:
+    background 0.2s,
+    color 0.2s,
+    border-color 0.2s;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  line-height: 20px;
+  font-weight: 500;
+}
+
+a.primary {
+  background: var(--foreground);
+  color: var(--background);
+  gap: 8px;
+}
+
+a.secondary {
+  border-color: var(--gray-alpha-200);
+  min-width: 158px;
+}
+
+.footer {
+  grid-row-start: 3;
+  display: flex;
+  gap: 24px;
+}
+
+.footer a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.footer img {
+  flex-shrink: 0;
+}
+
+/* Enable hover only on non-touch devices */
+@media (hover: hover) and (pointer: fine) {
+  a.primary:hover {
+    background: var(--button-primary-hover);
+    border-color: transparent;
+  }
+
+  a.secondary:hover {
+    background: var(--button-secondary-hover);
+    border-color: transparent;
+  }
+
+  .footer a:hover {
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+}
+
+@media (max-width: 600px) {
+  .page {
+    padding: 32px;
+    padding-bottom: 80px;
+  }
+
+  .main {
+    align-items: center;
+  }
+
+  .main ol {
+    text-align: center;
+  }
+
+  .ctas {
+    flex-direction: column;
+  }
+
+  .ctas a {
+    font-size: 14px;
+    height: 40px;
+    padding: 0 16px;
+  }
+
+  a.secondary {
+    min-width: auto;
+  }
+
+  .footer {
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .logo {
+    filter: invert();
+  }
+}
+
+/* Chat UI Styles */
+.chatContainer {
+  background-color: var(--background);
+  border: 1px solid var(--gray-alpha-200);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: 500px;
+}
+
+.messageArea {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  /* background-color: var(--gray-alpha-100); */ /* Commented out or removed */
+  background-color: #ffffff; /* Added white background */
+}
+
+.message {
+  display: flex;
+  max-width: 75%;
+  padding: 10px 15px;
+  border-radius: 18px;
+  line-height: 1.4;
+  word-wrap: break-word;
+}
+
+.message p {
+  margin: 0;
+}
+
+.userMessage {
+  align-self: flex-end;
+  background-color: #007bff; /* Example user message color */
+  color: white;
+  border-bottom-right-radius: 4px;
+}
+
+.botMessage {
+  align-self: flex-start;
+  background-color: #e9ecef; /* Example bot message color */
+  color: #333;
+  border-bottom-left-radius: 4px;
+}
+
+.botMessage img {
+  max-width: 100%;
+  border-radius: 8px;
+  margin-top: 8px;
+}
+
+.inputArea {
+  display: flex;
+  padding: 15px;
+  border-top: 1px solid var(--gray-alpha-200);
+  background-color: var(--background);
+}
+
+.inputArea input {
+  flex-grow: 1;
+  padding: 10px 15px;
+  border: 1px solid var(--gray-alpha-200);
+  border-radius: 20px;
+  margin-right: 10px;
+  font-size: 1rem;
+  outline: none;
+}
+
+.inputArea input:focus {
+  border-color: #007bff;
+  box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+}
+
+.inputArea button {
+  padding: 10px 20px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background-color 0.2s;
+}
+
+.inputArea button:hover {
+  background-color: #0056b3;
+}
+
+.inputArea button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+.loadingIndicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+  color: #777;
+}
+
+.loadingIndicator p {
+  margin: 0;
+  font-style: italic;
+}
+
+/* Styles for button messages */
+.buttonMessageContainer {
+  /* You can add specific styles for the container if needed */
+  /* For example, if you want a different background or padding for messages with buttons */
+}
+
+.buttonsContainer {
+  display: flex;
+  flex-wrap: wrap; /* Allow buttons to wrap to next line if space is insufficient */
+  gap: 8px; /* Spacing between buttons */
+  justify-content: flex-start; /* Align buttons to the start (left) */
+  margin-top: 8px; /* Space above the button container */
+  align-self: flex-start; /* Align with bot messages */
+  max-width: 100%; /* Ensure it doesn't overflow chat container */
+}
+
+.chatButton {
+  background-color: #e7f5ff; /* Very light blue background */
+  color: #007bff; /* Blue text */
+  border: 1px solid #cce0ff; /* Subtle, slightly darker light blue border */
+  padding: 8px 12px; /* Adjusted padding */
+  border-radius: 6px; /* Less rounded corners */
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+  text-align: center;
+  font-weight: 500; /* Make text a bit bolder like in example */
+}
+
+.chatButton:hover {
+  background-color: #d9e9ff; /* Slightly darker light blue on hover */
+  border-color: #b8d6ff; /* Slightly darker border on hover */
+  color: #0056b3; /* Optional: Darker text on hover */
+}
+
+.chatButton:disabled {
+  background-color: #f8f8f8;
+  color: #aaa;
+  cursor: not-allowed;
+  border-color: #eee;
+}
+
+.dotFlashing {
+  position: relative;
+  width: 10px;
+  height: 10px;
+  border-radius: 5px;
+  background-color: #007bff;
+  color: #007bff;
+  animation: dotFlashing 1s infinite linear alternate;
+  animation-delay: .5s;
+  margin: 10px; /* Adjust margin as needed */
+}
+
+.dotFlashing::before,
+.dotFlashing::after {
+  content: '';
+  display: inline-block;
+  position: absolute;
+  top: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 5px;
+  background-color: #007bff;
+  color: #007bff;
+  animation: dotFlashing 1s infinite alternate;
+}
+
+.dotFlashing::before {
+  left: -15px;
+  animation-delay: 0s;
+}
+
+.dotFlashing::after {
+  left: 15px;
+  animation-delay: 1s;
+}
+
+@keyframes dotFlashing {
+  0% {
+    background-color: #007bff;
+  }
+  50%, 100% {
+    background-color: #79bcff;
+  }
+}

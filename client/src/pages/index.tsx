@@ -22,10 +22,10 @@ interface Message {
   payload?: any; // For rich content like images, buttons, cards
 }
 
-const VOICEFLOW_API_KEY = "VF.DM.683f8d058602f52f00c527c6.rfQSfRv39vC1kyHf"; // IMPORTANT: Move to env var for production
+const VOICEFLOW_API_KEY = "VF.DM.6840bbad23abbbf9e0a2ca6f.YXpN4N1VGoj2pzra";
 const USER_ID = "user_12345"; 
-const VOICEFLOW_PROJECT_ID = "683ce60b42015279f6c3d566"; // If needed for specific launch/config
-const VOICEFLOW_VERSION_ID = "production"; // Or specific version
+const VOICEFLOW_PROJECT_ID = "6840b5b978f00e1b0b9447be";
+const VOICEFLOW_VERSION_ID = "production";
 
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -58,7 +58,7 @@ export default function Home() {
         payload: {
           user_name: 'Max Den', // Example user data
           user_role: 'Customer',
-          user_data_access: 'Full',
+          user_access: 'Full',
           user_email: 'max.den@example.com',
         }
       };

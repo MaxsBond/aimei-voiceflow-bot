@@ -18,8 +18,9 @@ const geistMono = Geist_Mono({
 interface Message {
   sender: "user" | "bot";
   text: string;
-  type: "text" | "image" | "card" | "carousel" | "button"; // Add other types as needed
+  type: "text" | "image" | "card" | "carousel" | "button" | "debug"; // Add debug type
   payload?: any; // For rich content like images, buttons, cards
+  id?: string; // Add unique ID for better tracking
 }
 
 const VOICEFLOW_API_KEY = "VF.DM.6840bbad23abbbf9e0a2ca6f.YXpN4N1VGoj2pzra";
@@ -45,7 +46,14 @@ export default function Home() {
   const sendMessageToVoiceflow = async (text: string | null, eventType?: string) => {
     setIsLoading(true);
     if (text) {
-      setMessages((prevMessages) => [...prevMessages, { sender: "user", text, type: "text" }]);
+      const userMessage: Message = { 
+        sender: "user", 
+        text, 
+        type: "text",
+        id: `user-${Date.now()}-${Math.random()}`
+      };
+      setMessages((prevMessages) => [...prevMessages, userMessage]);
+      // console.log("Added user message:", userMessage);
     }
 
     const requestBody: any = {
@@ -81,6 +89,7 @@ export default function Home() {
     const apiUrl = `https://general-runtime.voiceflow.com/v2/project/${VOICEFLOW_PROJECT_ID}/user/${USER_ID}/interact/stream?completion_events=true`;
     
     try {
+      // console.log("Sending request to Voiceflow:", requestBody);
       const response = await fetch(apiUrl, {
         method: "POST",
         headers: {
@@ -95,10 +104,13 @@ export default function Home() {
       if (!response.ok) {
         const errorData = await response.json(); // Or response.text() if not JSON
         console.error("Voiceflow API Error:", errorData);
-        setMessages((prevMessages) => [
-          ...prevMessages,
-          { sender: "bot", text: `Error: ${errorData.message || "Failed to connect to Voiceflow."}`, type: "text" },
-        ]);
+        const errorMessage: Message = {
+          sender: "bot", 
+          text: `Error: ${errorData.message || "Failed to connect to Voiceflow."}`, 
+          type: "text",
+          id: `error-${Date.now()}`
+        };
+        setMessages((prevMessages) => [...prevMessages, errorMessage]);
         setIsLoading(false);
         return;
       }
@@ -112,64 +124,49 @@ export default function Home() {
       const decoder = new TextDecoder();
       let buffer = "";
       let accumulatedContent = ""; // For accumulating streamed "completion" content
-      let currentBotMessageId: string | number | null = null; // To update the same bot message, can be a unique ID or index
+      let currentStreamingMessageId: string | null = null; // Track the current streaming message
 
-      const addOrUpdateBotMessage = (
+      const addBotMessage = (
         text: string, 
-        type: "text" | "image" | "card" | "carousel" | "button" = "text", 
-        payload?: any, 
-        isFinalForStream: boolean = true, // Indicates if this is the final part of a stream for a single logical message
-        messageId?: string | number // Optional ID to specifically target a message for update
+        type: "text" | "image" | "card" | "carousel" | "button" | "debug" = "text", 
+        payload?: any,
+        messageId?: string
       ) => {
-        setMessages(prevMessages => {
-          const uniqueMessageId = messageId || (currentBotMessageId !== null ? currentBotMessageId : `bot-msg-${Date.now()}-${Math.random()}`);
-          
-          const existingMessageIndex = prevMessages.findIndex(msg => msg.payload?.id === uniqueMessageId || (typeof uniqueMessageId === 'number' && prevMessages.indexOf(msg) === uniqueMessageId));          
+        const id = messageId || `bot-${Date.now()}-${Math.random()}`;
+        const newMessage: Message = { 
+          sender: "bot", 
+          text, 
+          type, 
+          payload: { ...payload, id },
+          id
+        };
+        
+        if (type === "debug") {
+          // console.log("Debug message (not displayed in UI):", newMessage);
+        } else {
+          // console.log("Adding bot message:", newMessage);
+        }
+        setMessages(prevMessages => [...prevMessages, newMessage]);
+        return id;
+      };
 
-          if (existingMessageIndex !== -1 && !isFinalForStream) {
-            // Update existing message if it's not final
-            return prevMessages.map((msg, index) => 
-              index === existingMessageIndex
-              ? { ...msg, text: text, type, payload: { ...msg.payload, ...payload, id: uniqueMessageId } } 
+      const updateBotMessage = (messageId: string, text: string, payload?: any) => {
+        // console.log("Updating bot message:", messageId, "with text:", text);
+        setMessages(prevMessages => 
+          prevMessages.map(msg => 
+            msg.id === messageId 
+              ? { ...msg, text, payload: { ...msg.payload, ...payload } }
               : msg
-            );
-          } else if (existingMessageIndex !== -1 && isFinalForStream) {
-            // Finalize an existing streamed message
-             const finalMessage = { 
-                sender: "bot" as const, 
-                text, 
-                type, 
-                payload: { ...prevMessages[existingMessageIndex].payload, ...payload, id: uniqueMessageId } 
-            };
-            const updatedMessages = prevMessages.map((msg, index) => 
-              index === existingMessageIndex ? finalMessage : msg
-            );
-            if (currentBotMessageId === uniqueMessageId) {
-                currentBotMessageId = null;
-                accumulatedContent = "";
-            }
-            return updatedMessages;
-          } else {
-            // Add new message
-            const newMessage = { 
-                sender: "bot" as const, 
-                text, 
-                type, 
-                payload: { ...payload, id: uniqueMessageId } 
-            };
-            if (!isFinalForStream) {
-              currentBotMessageId = uniqueMessageId; // Set this as the message being actively streamed
-            }
-            return [...prevMessages, newMessage];
-          }
-        });
+          )
+        );
       };
 
       readerLoop: while (true) {
         const { done, value } = await reader.read();
         if (done) {
-          if (accumulatedContent) {
-            addOrUpdateBotMessage(accumulatedContent, "text", undefined, true, currentBotMessageId ?? undefined);
+          // console.log("SSE stream ended");
+          if (accumulatedContent && currentStreamingMessageId) {
+            updateBotMessage(currentStreamingMessageId, accumulatedContent, { state: "end" });
           }
           break;
         }
@@ -192,67 +189,91 @@ export default function Home() {
             }
           });
 
+          // console.log("Received SSE event:", eventType, "data:", dataString);
+
           if (eventType === "trace" && dataString) {
             try {
               const trace = JSON.parse(dataString);
-              const messageBaseId = `trace-${trace.time || Date.now()}`;
+              // console.log("Parsed trace:", trace);
 
               if (trace.type === "completion") {
                 if (trace.payload.state === "start") {
+                  // console.log("Starting completion stream");
                   accumulatedContent = ""; 
-                  currentBotMessageId = `${messageBaseId}-completion`;
-                  addOrUpdateBotMessage("", "text", { state: "start" }, false, currentBotMessageId);
+                  currentStreamingMessageId = addBotMessage("", "text", { state: "start" });
                 } else if (trace.payload.state === "content" && trace.payload.content) {
                   accumulatedContent += trace.payload.content;
-                  addOrUpdateBotMessage(accumulatedContent, "text", { state: "content" }, false, currentBotMessageId ?? undefined);
+                  if (currentStreamingMessageId) {
+                    updateBotMessage(currentStreamingMessageId, accumulatedContent, { state: "content" });
+                  }
                 } else if (trace.payload.state === "end") {
-                  addOrUpdateBotMessage(accumulatedContent || " ", "text", { state: "end" }, true, currentBotMessageId ?? undefined);
+                  // console.log("Ending completion stream with content:", accumulatedContent);
+                  if (currentStreamingMessageId) {
+                    updateBotMessage(currentStreamingMessageId, accumulatedContent || " ", { state: "end" });
+                  }
                   accumulatedContent = "";
-                  currentBotMessageId = null;
+                  currentStreamingMessageId = null;
                 }
               } else if (trace.type === "text" || trace.type === "speak") {
                 if (trace.payload.message) {
-                  addOrUpdateBotMessage(trace.payload.message, "text", { ...trace.payload, id: `${messageBaseId}-text` }, true);
+                  // console.log("Adding text/speak message:", trace.payload.message);
+                  addBotMessage(trace.payload.message, "text", trace.payload);
                 }
               } else if (trace.type === "visual" && trace.payload.visualType === "image") {
-                addOrUpdateBotMessage("Image", "image", { ...trace.payload, id: `${messageBaseId}-image` }, true);
+                // console.log("Adding image message:", trace.payload);
+                addBotMessage("Image", "image", trace.payload);
               } else if (trace.type === "choice" && trace.payload.buttons && trace.payload.buttons.length > 0) {
                 const introText = trace.payload.message || "";
-                addOrUpdateBotMessage(introText, "button", { buttons: trace.payload.buttons, id: `${messageBaseId}-buttons`, ...trace.payload }, true);
+                // console.log("Adding button message:", introText, "buttons:", trace.payload.buttons);
+                addBotMessage(introText, "button", { buttons: trace.payload.buttons, ...trace.payload });
+              } else if (trace.type === "debug") {
+                // Handle debug traces - log but don't display in UI
+                // console.log("Debug trace received:", trace.payload);
+                addBotMessage(trace.payload.message || "Debug info", "debug", trace.payload);
+              } else {
+                // Handle any other trace types that might contain messages
+                // console.log("Unhandled trace type:", trace.type, "payload:", trace.payload);
+                
+                // Try to extract any message content from unknown trace types
+                if (trace.payload && trace.payload.message) {
+                  // console.log("Adding message from unhandled trace type:", trace.payload.message);
+                  addBotMessage(trace.payload.message, "text", trace.payload);
+                }
               }
-              // Add more handlers for other trace types (cards, etc.)
             } catch (e) {
               console.error("Failed to parse trace data:", e, "Data:", dataString);
             }
           } else if (eventType === "end") {
-            if (accumulatedContent) {
-              addOrUpdateBotMessage(accumulatedContent, "text", undefined, true, currentBotMessageId ?? undefined);
+            // console.log("Received end event");
+            if (accumulatedContent && currentStreamingMessageId) {
+              updateBotMessage(currentStreamingMessageId, accumulatedContent, { state: "end" });
               accumulatedContent = "";
-              currentBotMessageId = null;
+              currentStreamingMessageId = null;
             }
-            // Optional: Signal conversation ended if no other messages were processed or based on specific logic
-            // This is the end of the stream for *this* interaction, not necessarily the whole conversation session.
-            // Consider if a specific "Conversation ended." message is always appropriate here.
-            console.log("Voiceflow SSE stream ended for this interaction.");
             break readerLoop; // Exit the main reader loop
+          } else {
+            // Log any other event types we might be missing
+            // console.log("Unhandled event type:", eventType, "data:", dataString);
           }
         }
       }
-      // Final flush of the decoder, though usually not needed for SSE with \n\n termination
+
+      // Final flush of the decoder
       const remainingDecoded = decoder.decode();
       if (remainingDecoded) {
         buffer += remainingDecoded;
-        // Process any final, potentially incomplete, message in buffer - similar to loop above
-        // This is less common for well-behaved SSE streams that terminate events with \n\n
-        console.log("Final remaining buffer content:", buffer)
+        // console.log("Final remaining buffer content:", buffer);
       }
 
     } catch (error) {
       console.error("Failed to send message:", error);
-      setMessages((prevMessages) => [
-        ...prevMessages,
-        { sender: "bot", text: "Error communicating with the chat service.", type: "text" },
-      ]);
+      const errorMessage: Message = {
+        sender: "bot", 
+        text: "Error communicating with the chat service.", 
+        type: "text",
+        id: `error-${Date.now()}`
+      };
+      setMessages((prevMessages) => [...prevMessages, errorMessage]);
     } finally {
       setIsLoading(false);
       if (text && eventType !== 'launch') { // Don't clear input after launch
@@ -288,21 +309,22 @@ export default function Home() {
           {/* Basic chat UI */}
           <div className={styles.chatContainer} style={{ width: "800px"}}>
             <div className={styles.messageArea}>
-              {messages.map((msg, index) => (
-                <React.Fragment key={index}>
-                  {/* Conditionally render the message bubble if there's content for it */}
+              {messages
+                .filter(msg => msg.type !== "debug") // Filter out debug messages from UI
+                .map((msg, index) => (
+                <React.Fragment key={msg.id || index}>
+                  {/* Render all text messages and messages with content */}
                   {(msg.type === 'text' || msg.type === 'image' || (msg.type === 'button' && msg.text)) && (
                     <div className={`${styles.message} ${msg.sender === 'user' ? styles.userMessage : styles.botMessage}`}>
                       {msg.type === 'text' && <p style={{ whiteSpace: 'pre-line' }}>{msg.text}</p>}
-                      {msg.type === 'image' && msg.payload.image && <img src={msg.payload.image} alt="bot visual" />}
+                      {msg.type === 'image' && msg.payload && msg.payload.image && <img src={msg.payload.image} alt="bot visual" />}
                       {msg.type === 'button' && msg.text && <p style={{ whiteSpace: 'pre-line' }}>{msg.text}</p>}
-                      {/* Add rendering for other message types (cards) here, if they should be in a bubble */}
                     </div>
                   )}
 
                   {/* Render buttons separately if the message type is 'button' */}
                   {msg.type === 'button' && msg.payload && msg.payload.buttons && Array.isArray(msg.payload.buttons) && (
-                    <div className={styles.buttonsContainer}> {/* This div now directly holds the buttons, outside the main message bubble */}
+                    <div className={styles.buttonsContainer}>
                       {(msg.payload.buttons as Array<{name: string, request?: {type: string, payload: any}}>).map((button, btnIndex) => (
                         <button
                           key={btnIndex}
